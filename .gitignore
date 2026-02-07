@@ -1,0 +1,49 @@
+# .gitignore for Leantime AIAssistant Plugin
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Backup files
+*.backup
+*_old.*
+*.bak
+
+# OS files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+cache/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Dependencies (should not be needed for plugin)
+vendor/
+node_modules/
+
+# Build artifacts
+dist/
+build/
+
+# Test coverage
+coverage/
+.phpunit.result.cache
+
+# Personal notes
+TODO.txt
+NOTES.txt

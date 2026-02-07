@@ -1,0 +1,25 @@
+{
+    "name": "leantime/aiassistant",
+    "description": "AI-powered assistant for quick task creation with Ollama and OpenAI integration",
+    "version": "1.0.0",
+    "screenshot": "/images/screenshot.png",
+    "authors": [
+        {
+            "name": "Leantime",
+            "email": "support@leantime.io"
+        }
+    ],
+    "homepage": "https://leantime.io",
+    "type": "plugin",
+    "keywords": [
+        "ai",
+        "assistant",
+        "ollama",
+        "openai",
+        "task-automation"
+    ],
+    "license": "Apache-2.0",
+    "require": {
+        "leantime/leantime": "3.0"
+    }
+}
