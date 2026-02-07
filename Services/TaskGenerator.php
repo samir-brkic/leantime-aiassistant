@@ -134,11 +134,6 @@ class TaskGenerator
             $values['dateToFinish'] = $taskStructure->deadline;
         }
         
-        // Add tags
-        if (!empty($taskStructure->tags)) {
-            $values['tags'] = implode(',', $taskStructure->tags);
-        }
-        
         error_log("AIAssistant: Calling quickAddTicket with values: " . json_encode($values));
         
         $result = $this->ticketService->quickAddTicket($values);
@@ -149,6 +144,11 @@ class TaskGenerator
         // Check for both int and boolean true as success
         if (is_int($result) && $result > 0) {
             error_log("AIAssistant: Task created successfully with ID: $result");
+            
+            // BUGFIX: Tags must be saved AFTER task creation via repository
+            // Include category as first tag
+            $this->saveTags($result, $taskStructure->tags, $taskStructure->category);
+            
             return $result;
         }
         
@@ -156,7 +156,15 @@ class TaskGenerator
             error_log("AIAssistant: Task created but no ID returned (Leantime bug?), checking last insert ID");
             // Try to get the last inserted ticket ID from repository
             // This is a workaround for the buggy return type
-            return $this->getLastCreatedTicketId($taskStructure->projectId, $taskStructure->title);
+            $taskId = $this->getLastCreatedTicketId($taskStructure->projectId, $taskStructure->title);
+            
+            // BUGFIX: Tags must be saved AFTER task creation via repository
+            // Include category as first tag
+            if ($taskId) {
+                $this->saveTags($taskId, $taskStructure->tags, $taskStructure->category);
+            }
+            
+            return $taskId;
         }
         
         if (is_array($result)) {
@@ -166,6 +174,53 @@ class TaskGenerator
         }
         
         return false;
+    }
+    
+    /**
+     * Save tags to a ticket (BUGFIX for tag storage)
+     * 
+     * Tags must be saved separately as quickAddTicket() doesn't process them
+     * Category is added as first tag for better organization and filtering
+     * 
+     * @param int $ticketId
+     * @param array $tags
+     * @param string|null $category
+     * @return void
+     */
+    private function saveTags(int $ticketId, array $tags, ?string $category = null): void
+    {
+        // Add category as first tag if provided
+        if (!empty($category)) {
+            // Get readable category name with emoji
+            $categoryName = $this->categoryManager->getCategoryName($category);
+            $categoryIcon = $this->categoryManager->getCategoryIcon($category);
+            
+            // Format: "📋 Anfrage" or just category name
+            $categoryTag = $categoryIcon ? "{$categoryIcon} {$categoryName}" : $categoryName;
+            
+            // Add category as first tag
+            array_unshift($tags, $categoryTag);
+        }
+        
+        // Remove empty tags and duplicates
+        $tags = array_filter($tags);
+        $tags = array_unique($tags);
+        
+        if (empty($tags)) {
+            return;
+        }
+        
+        $tagsString = implode(',', $tags);
+        
+        error_log("AIAssistant: Saving tags to ticket $ticketId: $tagsString");
+        
+        try {
+            // Update tags directly via repository
+            $this->ticketRepository->patchTicket($ticketId, ['tags' => $tagsString]);
+            error_log("AIAssistant: Tags saved successfully");
+        } catch (\Exception $e) {
+            error_log("AIAssistant: Failed to save tags - " . $e->getMessage());
+        }
     }
 
     /**
@@ -224,7 +279,7 @@ class TaskGenerator
     }
 
     /**
-     * Format task description with category and metadata
+     * Format task description (without category - now in tags)
      * 
      * @param TaskStructure $taskStructure
      * @return string Formatted description
@@ -233,15 +288,8 @@ class TaskGenerator
     {
         $description = $taskStructure->description;
         
-        // Add category badge
-        if ($taskStructure->category) {
-            $categoryName = $this->categoryManager->getCategoryName($taskStructure->category);
-            $categoryIcon = $this->categoryManager->getCategoryIcon($taskStructure->category);
-            
-            $description = "**📁 Kategorie:** {$categoryName}\n\n" . $description;
-        }
-        
-        // Add AI-generated note
+        // Category is now added as tag instead of description badge
+        // Just add AI-generated note
         $description .= "\n\n---\n*Automatisch erstellt via AI Assistant*";
         
         return $description;
